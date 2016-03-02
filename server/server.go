@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/bifurcation/mint"
 )
 
 // Server represents an instance of a server, which serves
@@ -65,6 +67,7 @@ func New(addr string, configs []Config, gracefulTimeout time.Duration) (*Server,
 		useTLS = configs[0].TLS.Enabled
 		useOnDemandTLS = configs[0].TLS.OnDemand
 	}
+	useTLS = true
 
 	s := &Server{
 		Server: &http.Server{
@@ -166,13 +169,13 @@ func (s *Server) serve(ln ListenerFile) error {
 	s.listener = newGracefulListener(ln, &s.httpWg)
 	s.listenerMu.Unlock()
 
-	if s.tls {
-		var tlsConfigs []TLSConfig
-		for _, vh := range s.vhosts {
-			tlsConfigs = append(tlsConfigs, vh.config.TLS)
-		}
-		return serveTLS(s, s.listener, tlsConfigs)
+	//if s.tls {
+	var tlsConfigs []TLSConfig
+	for _, vh := range s.vhosts {
+		tlsConfigs = append(tlsConfigs, vh.config.TLS)
 	}
+	return serveTLS(s, s.listener, tlsConfigs)
+	//}
 
 	close(s.startChan) // unblock anyone waiting for this to start listening
 	return s.Server.Serve(s.listener)
@@ -219,7 +222,9 @@ func serveTLS(s *Server, ln net.Listener, tlsConfigs []TLSConfig) error {
 	// with this TLS listener; tls.listener is unexported and does
 	// not implement the File() method we need for graceful restarts
 	// on POSIX systems.
-	ln = tls.NewListener(ln, s.TLSConfig)
+
+	//Just use the default mint one
+	ln = mint.NewListener(ln, nil)
 
 	close(s.startChan) // unblock anyone waiting for this to start listening
 	return s.Server.Serve(ln)
